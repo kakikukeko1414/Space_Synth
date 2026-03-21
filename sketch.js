@@ -76,7 +76,7 @@ let beepOsc, beepPhase = 0;
 let beepOn = true, nextBeepToggleTime = 0;
 
 function setup() {
-  createCanvas(900, 650);
+  createCanvas(windowWidth, windowHeight);
   textAlign(CENTER, CENTER);
 
   // これを入れると、環境差でカメラ差分が壊れにくい
@@ -100,7 +100,11 @@ function setup() {
 
   // MET note pool (G,B,E,A)
   let base = [55, 59, 64, 69];
-  for (let o = -1; o <= 2; o++) for (let n of base) metNotePool.push(n + o * 12);
+  for (let o = -1; o <= 2; o++) {
+    for (let n of base) {
+      metNotePool.push(n + o * 12);
+    }
+  }
 
   metFilter = new p5.LowPass();
   metFilter.freq(2000);
@@ -180,8 +184,10 @@ function setup() {
   voiceOsc1.connect(voiceFilter1);
   voiceOsc2.connect(voiceFilter2);
 
-  voiceFilter1.freq(900);  voiceFilter1.res(7);
-  voiceFilter2.freq(2200); voiceFilter2.res(8);
+  voiceFilter1.freq(900);
+  voiceFilter1.res(7);
+  voiceFilter2.freq(2200);
+  voiceFilter2.res(8);
 
   voiceEnv = new p5.Envelope();
   voiceEnv.setADSR(0.2, 0.8, 0.3, 1.2);
@@ -254,7 +260,7 @@ function setup() {
 }
 
 function draw() {
-  background(10);
+  background(120);
 
   if (!started) {
     fill(255);
@@ -269,7 +275,9 @@ function draw() {
 
   let now = millis();
   if (now - lastStepTime >= stepInterval) {
-    while (now - lastStepTime >= stepInterval) lastStepTime += stepInterval;
+    while (now - lastStepTime >= stepInterval) {
+      lastStepTime += stepInterval;
+    }
     advanceStep();
   }
 
@@ -293,7 +301,10 @@ function detectCameraMotionAndBrightness() {
     return;
   }
 
-  let diffSum = 0, lumSum = 0, count = 0;
+  let diffSum = 0;
+  let lumSum = 0;
+  let count = 0;
+
   for (let i = 0; i < cam.pixels.length; i += 4) {
     const r = cam.pixels[i];
     const g = cam.pixels[i + 1];
@@ -521,6 +532,7 @@ function updateBeep() {
 function drawUI() {
   let r = map(smoothedMotion, 0, 80, 10, 240);
   r = constrain(r, 10, 240);
+
   noFill();
   stroke(150);
   strokeWeight(2);
@@ -550,6 +562,12 @@ function mousePressed() {
     seaNoise.amp(0.06, 0.8);
     landNoise.amp(0.0, 0.8);
 
-    for (let v of metVoices) v.osc.amp(v.baseAmp, 1.5);
+    for (let v of metVoices) {
+      v.osc.amp(v.baseAmp, 1.5);
+    }
   });
+}
+
+function windowResized() {
+  resizeCanvas(windowWidth, windowHeight);
 }
