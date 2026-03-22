@@ -1,7 +1,6 @@
 // ===============================
-// Ambient Camera Synth + Wavy Rings UI
-// - p5.js + p5.sound required
-// - Click to start (Safari-safe)
+// Ambient Camera Synth + Wavy Rings + Motion Hand Mask
+// p5.js + p5.sound required
 // ===============================
 
 let cam, prevFrame;
@@ -18,7 +17,7 @@ let lastStepTime = 0;
 let currentStep = 0;
 let currentBar = 0;
 
-// ---- dark mode (brightness) ----
+// ---- dark mode ----
 let darkMode = false;
 let darkOnThresh = 55;
 let darkOffThresh = 75;
@@ -26,7 +25,7 @@ let darkOffThresh = 75;
 // ---- FX ----
 let reverb, gongDelay;
 
-// ---- MET (G,B,E,A only) ----
+// ---- MET ----
 let metVoices = [];
 let metNotePool = [];
 let metFilter;
@@ -59,7 +58,7 @@ let gongOsc, gongEnv;
 // ---- Thunder ----
 let thunderNoise, thunderFilter, thunderEnv;
 
-// ---- Metal hit ----
+// ---- Metal ----
 let metalOsc, metalFilter, metalEnv;
 
 // ---- Bass ----
@@ -75,6 +74,13 @@ let darkBassLevel = 0.22;
 let beepOsc, beepPhase = 0;
 let beepOn = true, nextBeepToggleTime = 0;
 
+// ---- hand mask ----
+let handMaskImg;
+let motionThreshold = 55;     // 動き検出のしきい値
+let maskBlurPasses = 1;       // 0〜2くらいで調整
+let camViewW = 220;
+let camViewH = 165;
+
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textAlign(CENTER, CENTER);
@@ -85,6 +91,7 @@ function setup() {
   cam.hide();
 
   prevFrame = createImage(160, 120);
+  handMaskImg = createImage(160, 120);
 
   beatInterval = 60000 / bpm;
   stepInterval = beatInterval / 4;
@@ -253,8 +260,6 @@ function draw() {
     return;
   }
 
-  // image(cam, 20, 20, 160, 120);
-
   detectCameraMotionAndBrightness();
 
   let now = millis();
@@ -273,6 +278,7 @@ function draw() {
   updateBeep();
 
   drawUI();
+  drawHandPreview(24, 24, camViewW, camViewH);
 }
 
 function detectCameraMotionAndBrightness() {
@@ -280,6 +286,8 @@ function detectCameraMotionAndBrightness() {
   if (!cam.pixels || cam.pixels.length === 0) return;
 
   prevFrame.loadPixels();
+  handMaskImg.loadPixels();
+
   if (!prevFrame.pixels || prevFrame.pixels.length !== cam.pixels.length) {
     prevFrame.copy(cam, 0, 0, cam.width, cam.height, 0, 0, prevFrame.width, prevFrame.height);
     return;
@@ -298,9 +306,27 @@ function detectCameraMotionAndBrightness() {
     const pg = prevFrame.pixels[i + 1];
     const pb = prevFrame.pixels[i + 2];
 
-    diffSum += abs(r - pr) + abs(g - pg) + abs(b - pb);
+    const diff = abs(r - pr) + abs(g - pg) + abs(b - pb);
+
+    diffSum += diff;
     lumSum += 0.2126 * r + 0.7152 * g + 0.0722 * b;
     count++;
+
+    let alpha = 0;
+    if (diff > motionThreshold) {
+      alpha = map(diff, motionThreshold, 220, 40, 255, true);
+    }
+
+    handMaskImg.pixels[i] = 255;
+    handMaskImg.pixels[i + 1] = 45;
+    handMaskImg.pixels[i + 2] = 80;
+    handMaskImg.pixels[i + 3] = alpha;
+  }
+
+  handMaskImg.updatePixels();
+
+  for (let k = 0; k < maskBlurPasses; k++) {
+    handMaskImg.filter(BLUR, 1);
   }
 
   const motionRaw = diffSum / count;
@@ -317,6 +343,33 @@ function detectCameraMotionAndBrightness() {
   }
 
   prevFrame.copy(cam, 0, 0, cam.width, cam.height, 0, 0, prevFrame.width, prevFrame.height);
+}
+
+function drawHandPreview(x, y, w, h) {
+  push();
+
+  noStroke();
+  fill(255, 40);
+  rect(x - 8, y - 8, w + 16, h + 16, 18);
+
+  drawingContext.save();
+  drawingContext.beginPath();
+  drawingContext.roundRect(x, y, w, h, 14);
+  drawingContext.clip();
+
+  fill(235);
+  rect(x, y, w, h);
+
+  image(handMaskImg, x, y, w, h);
+
+  drawingContext.restore();
+
+  noFill();
+  stroke(255, 80);
+  strokeWeight(1.2);
+  rect(x, y, w, h, 14);
+
+  pop();
 }
 
 function advanceStep() {
@@ -519,11 +572,10 @@ function drawUI() {
   let baseRadius = min(width, height) * 0.12;
   let ringCount = 18;
   let ringGap = min(width, height) * 0.018;
-
   let t = millis() * 0.0015;
 
   noFill();
-  stroke(255, 60, 60);
+  stroke(255, 45, 80);
   strokeWeight(2.2);
 
   push();
