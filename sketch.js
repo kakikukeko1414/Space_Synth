@@ -1,5 +1,5 @@
 // ===============================
-// Ambient Camera Synth (Final / No Typewriter)
+// Ambient Camera Synth + Wavy Rings UI
 // - p5.js + p5.sound required
 // - Click to start (Safari-safe)
 // ===============================
@@ -78,27 +78,21 @@ let beepOn = true, nextBeepToggleTime = 0;
 function setup() {
   createCanvas(windowWidth, windowHeight);
   textAlign(CENTER, CENTER);
-
-  // これを入れると、環境差でカメラ差分が壊れにくい
   pixelDensity(1);
 
-  // camera
   cam = createCapture(VIDEO);
   cam.size(160, 120);
   cam.hide();
 
   prevFrame = createImage(160, 120);
 
-  // timing
   beatInterval = 60000 / bpm;
   stepInterval = beatInterval / 4;
   lastStepTime = millis();
 
-  // FX
   reverb = new p5.Reverb();
   gongDelay = new p5.Delay();
 
-  // MET note pool (G,B,E,A)
   let base = [55, 59, 64, 69];
   for (let o = -1; o <= 2; o++) {
     for (let n of base) {
@@ -122,7 +116,6 @@ function setup() {
   }
   reverb.process(metFilter, 5, 2);
 
-  // Sea
   seaNoise = new p5.Noise("pink");
   seaFilter = new p5.LowPass();
   seaNoise.disconnect();
@@ -133,7 +126,6 @@ function setup() {
   seaNoise.start();
   reverb.process(seaFilter, 5, 3);
 
-  // Land
   landNoise = new p5.Noise("brown");
   landFilter = new p5.BandPass();
   landNoise.disconnect();
@@ -144,7 +136,6 @@ function setup() {
   landNoise.start();
   reverb.process(landFilter, 6, 4);
 
-  // HiHat
   hhNoise = new p5.Noise("white");
   hhFilter = new p5.HighPass();
   hhNoise.disconnect();
@@ -156,7 +147,6 @@ function setup() {
   hhEnv.setRange(0.5, 0);
   reverb.process(hhFilter, 1.5, 0.3);
 
-  // TV noise
   tvNoise = new p5.Noise("white");
   tvFilter = new p5.BandPass();
   tvNoise.disconnect();
@@ -168,7 +158,6 @@ function setup() {
   tvEnv.setRange(1.0, 0);
   reverb.process(tvFilter, 2.5, 0.5);
 
-  // Voice
   voiceOsc1 = new p5.Oscillator("sine");
   voiceOsc2 = new p5.Oscillator("triangle");
   voiceOsc1.amp(0);
@@ -196,7 +185,6 @@ function setup() {
   reverb.process(voiceFilter1, 8, 0.7);
   reverb.process(voiceFilter2, 8, 0.7);
 
-  // Gong + Delay
   gongOsc = new p5.Oscillator("sine");
   gongOsc.amp(0);
   gongOsc.start();
@@ -206,7 +194,6 @@ function setup() {
   reverb.process(gongOsc, 5, 3);
   gongDelay.process(gongOsc, 0.45, 0.75, 4000);
 
-  // Thunder
   thunderNoise = new p5.Noise("brown");
   thunderFilter = new p5.LowPass();
   thunderNoise.disconnect();
@@ -220,7 +207,6 @@ function setup() {
   thunderEnv.setRange(0.4, 0);
   reverb.process(thunderFilter, 9, 0.8);
 
-  // Metal hit
   metalOsc = new p5.Oscillator("square");
   metalOsc.amp(0);
   metalOsc.start();
@@ -234,7 +220,6 @@ function setup() {
   metalEnv.setRange(0.8, 0);
   reverb.process(metalFilter, 5, 0.6);
 
-  // Bass (E1 + G1)
   bassOsc1 = new p5.Oscillator("square");
   bassOsc2 = new p5.Oscillator("square");
   bassOsc1.freq(41);
@@ -250,7 +235,6 @@ function setup() {
   bassHitEnv.setADSR(0.001, 0.06, 0, 0.10);
   bassHitEnv.setRange(darkBassLevel, 0);
 
-  // High beep
   beepOsc = new p5.Oscillator("sine");
   beepOsc.freq(3800);
   beepOsc.amp(0);
@@ -260,7 +244,7 @@ function setup() {
 }
 
 function draw() {
-  background(120);
+  background(180);
 
   if (!started) {
     fill(255);
@@ -269,7 +253,7 @@ function draw() {
     return;
   }
 
-  image(cam, 20, 20, 160, 120);
+  // image(cam, 20, 20, 160, 120);
 
   detectCameraMotionAndBrightness();
 
@@ -530,13 +514,60 @@ function updateBeep() {
 }
 
 function drawUI() {
-  let r = map(smoothedMotion, 0, 80, 10, 240);
-  r = constrain(r, 10, 240);
+  let motionNorm = constrain(smoothedMotion / 50.0, 0, 1);
+
+  let baseRadius = min(width, height) * 0.12;
+  let ringCount = 18;
+  let ringGap = min(width, height) * 0.018;
+
+  let t = millis() * 0.0015;
 
   noFill();
-  stroke(150);
-  strokeWeight(2);
-  circle(width / 2, height / 2, r);
+  stroke(255, 60, 60);
+  strokeWeight(2.2);
+
+  push();
+  translate(width / 2, height / 2);
+
+  for (let j = 0; j < ringCount; j++) {
+    let rBase = baseRadius + j * ringGap;
+
+    beginShape();
+    for (let a = 0; a <= TWO_PI + 0.08; a += 0.08) {
+      let n1 = noise(
+        cos(a) * 1.2 + 10,
+        sin(a) * 1.2 + 10,
+        t + j * 0.08
+      );
+
+      let n2 = noise(
+        cos(a * 2.0) * 0.8 + 40,
+        sin(a * 2.0) * 0.8 + 40,
+        t * 1.4 + j * 0.05
+      );
+
+      let wobble =
+        map(n1, 0, 1, -1, 1) * (18 + j * 1.8) * (0.35 + motionNorm * 1.8) +
+        map(n2, 0, 1, -1, 1) * 10 * (0.2 + motionNorm);
+
+      if (darkMode) wobble *= 1.25;
+
+      let pulse =
+        sin(a * 3.0 + t * 2.0 + j * 0.35) *
+        6 *
+        (0.15 + motionNorm * 0.8);
+
+      let r = rBase + wobble + pulse;
+
+      let x = cos(a) * r;
+      let y = sin(a) * r;
+
+      curveVertex(x, y);
+    }
+    endShape(CLOSE);
+  }
+
+  pop();
 
   noStroke();
   fill(255);
@@ -544,7 +575,7 @@ function drawUI() {
   text(
     `bar:${currentBar} step:${currentStep}\n` +
     `motion:${smoothedMotion.toFixed(2)}  lum:${smoothedLum.toFixed(1)}\n` +
-    `darkMode:${darkMode ? "ON" : "OFF"} (cover camera to trigger bass hits)`,
+    `darkMode:${darkMode ? "ON" : "OFF"}`,
     width / 2,
     height - 55
   );
